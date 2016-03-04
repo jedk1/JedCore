@@ -334,7 +334,7 @@ public class BloodPuppet extends BloodAbility implements AddonAbility {
 						if (puppet instanceof Player) {
 							Player p = (Player) puppet;
 
-							switch (p.getItemInHand().getType()) {
+							switch (p.getInventory().getItemInMainHand().getType()) {
 								case WOOD_SWORD:
 								case GOLD_SWORD:
 									damage = 5;
