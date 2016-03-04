@@ -110,7 +110,7 @@ public class Discharge extends LightningAbility implements AddonAbility {
 				for(int j = 0; j < 5; j++){
 					playLightningbendingParticle(l.clone(), 0f, 0f, 0f);
 					if(rand.nextInt(3) == 0)
-						player.getWorld().playSound(l, Sound.ENTITY_CREEPER_PRIMED, 1, 0);
+						player.getWorld().playSound(l, Sound.ENTITY_CREEPER_HURT, 1, 0);
 					for(Entity entity : GeneralMethods.getEntitiesAroundPoint(l, 2.0)){
 						if(entity instanceof LivingEntity && entity.getEntityId() != player.getEntityId() && !(entity instanceof ArmorStand)){
 							Vector knockbackVector = entity.getLocation().toVector().subtract(l.toVector()).normalize().multiply(0.8);
