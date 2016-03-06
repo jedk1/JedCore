@@ -11,6 +11,7 @@ import com.projectkorra.projectkorra.command.Commands;
 import com.projectkorra.projectkorra.object.HorizontalVelocityTracker;
 import com.projectkorra.projectkorra.util.DamageHandler;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Creature;
@@ -49,12 +50,13 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 	
 	public Bloodbending(Player player) {
 		super(player);
-		if (!isEligible(player)) {
+		if (!isEligible(player, true)) {
 			return;
 		}
 		setFields();
 		time = System.currentTimeMillis() + holdtime;
 		if (grab()) {
+			Bukkit.broadcastMessage("Running #1");
 			start();
 		}
 	}
@@ -70,8 +72,8 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Water.Bloodbending.Cooldown");
 	}
 
-	public boolean isEligible(Player player) {
-		if (!bPlayer.canBend(this) || !bPlayer.canBloodbend() || hasAbility(player, Bloodbending.class)) {
+	public boolean isEligible(Player player, boolean hasAbility) {
+		if (!bPlayer.canBend(this) || !bPlayer.canBloodbend() || (hasAbility && hasAbility(player, Bloodbending.class))) {
 			return false;
 		}
 		if (nightOnly && !isNight(player.getWorld()) && !bPlayer.canBloodbendAtAnytime()) {
@@ -174,7 +176,11 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 
 	@Override
 	public void progress() {
-		if (!isEligible(player)) {
+		if (player == null || !player.isOnline() || player.isDead()) {
+			remove();
+			return;
+		}
+		if (!isEligible(player, false)) {
 			remove();
 			return;
 		}
@@ -186,10 +192,6 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 		}
 
 		if (!player.isSneaking()) {
-			remove();
-			return;
-		}
-		if (!player.isOnline() || player.isDead()) {
 			remove();
 			return;
 		}
