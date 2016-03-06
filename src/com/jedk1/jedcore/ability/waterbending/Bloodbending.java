@@ -11,7 +11,6 @@ import com.projectkorra.projectkorra.command.Commands;
 import com.projectkorra.projectkorra.object.HorizontalVelocityTracker;
 import com.projectkorra.projectkorra.util.DamageHandler;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Creature;
@@ -56,7 +55,6 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 		setFields();
 		time = System.currentTimeMillis() + holdtime;
 		if (grab()) {
-			Bukkit.broadcastMessage("Running #1");
 			start();
 		}
 	}
