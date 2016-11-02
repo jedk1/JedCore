@@ -9,6 +9,7 @@ import com.projectkorra.projectkorra.BendingPlayer;
 import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.ability.CoreAbility;
 import com.projectkorra.projectkorra.ability.util.MultiAbilityManager;
+import com.projectkorra.projectkorra.custom.object.CooldownEntry;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -186,7 +187,21 @@ public class BendingBoard {
 					formatted.add(sb.toString());
 				}
 				boolean combo = false;
+				/*
+				 * Code for default projectkorra
 				for (String ability : bPlayer.getCooldowns().keySet()) {
+					if (JCMethods.getCombos().contains(ability)) {
+						if (!combo) {
+							formatted.add(BendingBoard.combo);
+						}
+						combo = true;
+						formatted.add( CoreAbility.getAbility(ability).getElement().getColor() + "" + ChatColor.STRIKETHROUGH + ability);
+					}
+				}
+				*/
+				//Code for custom projectkorra
+				for (CooldownEntry entry : bPlayer.getCooldowns()) {
+					String ability = entry.getAbility();
 					if (JCMethods.getCombos().contains(ability)) {
 						if (!combo) {
 							formatted.add(BendingBoard.combo);

@@ -1,17 +1,6 @@
 package com.jedk1.jedcore.util;
 
-import com.google.common.collect.Lists;
 import com.jedk1.jedcore.JedCore;
-import com.projectkorra.projectkorra.ProjectKorra;
-
-import org.bukkit.scheduler.BukkitRunnable;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.List;
 
 public class UpdateChecker {
 	
@@ -80,6 +69,7 @@ public class UpdateChecker {
 	}
 
 	public static void fetch(final Callback<Result> callback) {
+		/*
 		final String pkVersion = ProjectKorra.plugin.getDescription().getVersion();
 		final String jcVersion = JedCore.plugin.getDescription().getVersion();
 		new BukkitRunnable() {
@@ -121,5 +111,8 @@ public class UpdateChecker {
 				}
 			}
 		}.runTaskAsynchronously(JedCore.plugin);
+		*/
+		//Call unknown result. Assume I know what I'm doing.
+		callback.call(Result.UNKNOWN);
 	}
 }
