@@ -1,5 +1,19 @@
 package com.jedk1.jedcore.listener;
 
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
+
 import com.jedk1.jedcore.JedCore;
 import com.jedk1.jedcore.ability.airbending.AirBlade;
 import com.jedk1.jedcore.ability.airbending.AirBreath;
@@ -28,6 +42,7 @@ import com.jedk1.jedcore.ability.earthbending.MudSurge;
 import com.jedk1.jedcore.ability.earthbending.SandBlast;
 import com.jedk1.jedcore.ability.earthbending.combo.Crevice;
 import com.jedk1.jedcore.ability.earthbending.combo.MagmaBlast;
+import com.jedk1.jedcore.ability.firebending.Combustion;
 import com.jedk1.jedcore.ability.firebending.Discharge;
 import com.jedk1.jedcore.ability.firebending.FireBall;
 import com.jedk1.jedcore.ability.firebending.FireBreath;
@@ -62,20 +77,6 @@ import com.projectkorra.projectkorra.airbending.Suffocate;
 import com.projectkorra.projectkorra.chiblocking.ChiCombo;
 import com.projectkorra.projectkorra.chiblocking.Paralyze;
 import com.projectkorra.projectkorra.waterbending.Bloodbending;
-
-import org.bukkit.Material;
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerAnimationEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerToggleSneakEvent;
-
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class AbilityListener implements Listener {
 
@@ -182,6 +183,9 @@ public class AbilityListener implements Listener {
 			if (coreAbil instanceof FireAbility && bPlayer.isElementToggled(Element.FIRE) == true) {
 				if (GeneralMethods.isWeapon(player.getInventory().getItemInMainHand().getType()) && !ProjectKorra.plugin.getConfig().getBoolean("Properties.Fire.CanBendWithWeapons")) {
 					return;
+				}
+				if (abil.equalsIgnoreCase("combustion")) {
+					Combustion.combust(player);
 				}
 				if (abil.equalsIgnoreCase("discharge")) {
 					new Discharge(player);
@@ -350,6 +354,9 @@ public class AbilityListener implements Listener {
 			if (coreAbil instanceof FireAbility && bPlayer.isElementToggled(Element.FIRE) == true) {
 				if (GeneralMethods.isWeapon(player.getInventory().getItemInMainHand().getType()) && !ProjectKorra.plugin.getConfig().getBoolean("Properties.Fire.CanBendWithWeapons")) {
 					return;
+				}
+				if (abil.equalsIgnoreCase("combustion")) {
+					new Combustion(event.getPlayer());
 				}
 				if (abil.equalsIgnoreCase("firebreath")) {
 					new FireBreath(player);

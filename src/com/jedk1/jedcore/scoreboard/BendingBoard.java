@@ -1,22 +1,5 @@
 package com.jedk1.jedcore.scoreboard;
 
-import com.jedk1.jedcore.JCMethods;
-import com.jedk1.jedcore.JedCore;
-import com.jedk1.jedcore.configuration.Config;
-import com.jedk1.jedcore.configuration.JedCoreConfig;
-import com.jedk1.jedcore.util.Blacklist;
-import com.projectkorra.projectkorra.BendingPlayer;
-import com.projectkorra.projectkorra.ProjectKorra;
-import com.projectkorra.projectkorra.ability.CoreAbility;
-import com.projectkorra.projectkorra.ability.util.MultiAbilityManager;
-import com.projectkorra.projectkorra.custom.object.CooldownEntry;
-
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,11 +7,25 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
+
+import com.jedk1.jedcore.JCMethods;
+import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.Config;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
+import com.jedk1.jedcore.util.Blacklist;
+import com.projectkorra.projectkorra.BendingPlayer;
+import com.projectkorra.projectkorra.ability.CoreAbility;
+import com.projectkorra.projectkorra.ability.util.MultiAbilityManager;
+import com.projectkorra.projectkorra.custom.object.CooldownEntry;
+
 public class BendingBoard {
 
 	public static ConcurrentHashMap<Player, BendingBoard> boards = new ConcurrentHashMap<Player, BendingBoard>();
 	public static List<UUID> disabled = new ArrayList<UUID>();
-	public static List<String> worlds = new ArrayList<String>();
 	public static String title;
 	public static String empty;
 	public static String toggleOn;
@@ -70,21 +67,12 @@ public class BendingBoard {
 		toggleOn = ChatColor.translateAlternateColorCodes('&', JedCoreConfig.board.getConfig().getString("Settings.Toggle.On"));
 		toggleOff = ChatColor.translateAlternateColorCodes('&', JedCoreConfig.board.getConfig().getString("Settings.Toggle.Off"));
 		disabledworlds = JedCoreConfig.board.getConfig().getBoolean("Settings.Display.DisabledWorlds");
-
-		worlds.clear();
-		List<String> worlds = new ArrayList<String>();
-		worlds.addAll(ProjectKorra.plugin.getConfig().getStringList("Properties.DisabledWorlds"));
-		if (worlds != null && !worlds.isEmpty()) {
-			for (String s : worlds) {
-				BendingBoard.worlds.add(s);
-			}
-		}
 	}
 
 	public static void updateOnline() {
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			if (disabled.contains(player.getUniqueId())) continue;
-			if (!disabledworlds && worlds.contains(player.getWorld().getName())) continue;
+			if (!disabledworlds && JCMethods.getDisabledWorlds().contains(player.getWorld().getName())) continue;
 			BendingBoard.get(player).update();
 		}
 	}
@@ -113,7 +101,7 @@ public class BendingBoard {
 
 	public static void update(Player player, int slot) {
 		if (disabled.contains(player.getUniqueId())) return;
-		if (!disabledworlds && worlds.contains(player.getWorld().getName())) {
+		if (!disabledworlds && JCMethods.getDisabledWorlds().contains(player.getWorld().getName())) {
 			if (boards.containsKey(player)) {
 				get(player).remove();
 			}
@@ -132,10 +120,6 @@ public class BendingBoard {
 	
 	public static boolean isDisabled(Player player) {
 		return disabled.contains(player.getUniqueId());
-	}
-	
-	public static boolean isDisabledWorld(World world) {
-		return worlds.contains(world.getName());
 	}
 
 	public void remove() {

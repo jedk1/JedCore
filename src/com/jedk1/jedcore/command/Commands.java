@@ -6,5 +6,6 @@ public class Commands {
 	public Commands() {
 		new BoardCommand();
 		new JedCoreCommand();
+		new SlotCommand();
 	}
 }

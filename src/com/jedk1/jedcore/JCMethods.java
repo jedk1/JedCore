@@ -1,11 +1,14 @@
 package com.jedk1.jedcore;
 
+import com.jedk1.jedcore.configuration.JedCoreConfig;
+import com.jedk1.jedcore.listener.slotbar.SlotDisplayBar;
 import com.jedk1.jedcore.scoreboard.BendingBoard;
 import com.jedk1.jedcore.util.Blacklist;
 import com.jedk1.jedcore.util.RegenTempBlock;
 import com.jedk1.jedcore.util.TempFallingBlock;
 import com.jedk1.jedcore.util.UpdateChecker;
 import com.projectkorra.projectkorra.GeneralMethods;
+import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.ability.CoreAbility;
 import com.projectkorra.projectkorra.ability.util.ComboManager;
 import com.projectkorra.projectkorra.util.TempBlock;
@@ -15,6 +18,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
@@ -30,6 +34,7 @@ import java.util.List;
 public class JCMethods {
 
 	private static List<String> combos = new ArrayList<String>();
+	private static List<String> worlds = new ArrayList<String>();
 
 	public static List<String> getCombos() {
 		if (combos.isEmpty()) {
@@ -38,6 +43,17 @@ public class JCMethods {
 			}
 		}
 		return combos;
+	}
+
+	public static List<String> getDisabledWorlds() {
+		if (worlds.isEmpty()) {
+			worlds.addAll(ProjectKorra.plugin.getConfig().getStringList("Properties.DisabledWorlds"));
+		}
+		return worlds;
+	}
+
+	public static boolean isDisabledWorld(World world) {
+		return worlds.contains(world.getName());
 	}
 
 	/**
@@ -236,8 +252,8 @@ public class JCMethods {
 	}
 
 	static Material[] unbreakables = { Material.BEDROCK, Material.BARRIER,
-		Material.PORTAL, Material.ENDER_PORTAL,
-		Material.ENDER_PORTAL_FRAME, Material.OBSIDIAN};
+			Material.PORTAL, Material.ENDER_PORTAL,
+			Material.ENDER_PORTAL_FRAME, Material.OBSIDIAN};
 
 	public static boolean isUnbreakable(Block block) {
 		if (block.getState() instanceof InventoryHolder) {
@@ -249,24 +265,37 @@ public class JCMethods {
 	}
 
 	public static void reload() {
-		JedCore.log.info("JedCore Reloaded.");
-		JedCore.plugin.reloadConfig();
-		JedCore.plugin.saveConfig();
-		CoreAbility.registerPluginAbilities(JedCore.plugin, "com.jedk1.jedcore.ability");
-		combos.clear();
-		getCombos();
-		UpdateChecker.fetch();
-		Blacklist.fetch();
-		RegenTempBlock.revertAll();
-		TempFallingBlock.removeAllFallingBlocks();
-		BendingBoard.setFields();
-		BendingBoard.updateOnline();
-		if (UpdateChecker.hasUpdate()) {
-			for (Player player : Bukkit.getOnlinePlayers()) {
-				if (player.hasPermission("jedcore.admin.notify") && JedCore.plugin.getConfig().getBoolean("Settings.Updater.Notify")) {
-					player.sendMessage(ChatColor.DARK_RED + "JedCore: " + ChatColor.RED + "There is an update available for JedCore!");
+		JedCore.log.info("JedCore reloading...");
+		try {
+			JedCore.plugin.reloadConfig();
+			JedCore.plugin.saveConfig();
+			JedCoreConfig.board.reloadConfig();
+			JedCoreConfig.board.saveConfig();
+			JedCoreConfig.slotbar.reloadConfig();
+			JedCoreConfig.slotbar.saveConfig();
+			CoreAbility.registerPluginAbilities(JedCore.plugin, "com.jedk1.jedcore.ability");
+			combos.clear();
+			worlds.clear();
+			getCombos();
+			getDisabledWorlds();
+			UpdateChecker.fetch();
+			Blacklist.fetch();
+			RegenTempBlock.revertAll();
+			TempFallingBlock.removeAllFallingBlocks();
+			BendingBoard.setFields();
+			BendingBoard.updateOnline();
+			SlotDisplayBar.setFields();
+			if (UpdateChecker.hasUpdate()) {
+				for (Player player : Bukkit.getOnlinePlayers()) {
+					if (player.hasPermission("jedcore.admin.notify") && JedCore.plugin.getConfig().getBoolean("Settings.Updater.Notify")) {
+						player.sendMessage(ChatColor.DARK_RED + "JedCore: " + ChatColor.RED + "There is an update available for JedCore!");
+					}
 				}
 			}
+		} catch (Exception e) {
+			JedCore.log.info("Failed to reload Jedcore.");
+			return;
 		}
+		JedCore.log.info("JedCore reloaded successfully.");
 	}
 }

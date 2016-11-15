@@ -1,10 +1,17 @@
 package com.jedk1.jedcore;
 
+import java.io.IOException;
+import java.util.logging.Logger;
+
+import org.bukkit.plugin.java.JavaPlugin;
+
 import com.jedk1.jedcore.command.Commands;
 import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.listener.AbilityListener;
 import com.jedk1.jedcore.listener.CommandListener;
 import com.jedk1.jedcore.listener.JCListener;
+import com.jedk1.jedcore.listener.SlotDisplayListener;
+import com.jedk1.jedcore.listener.slotbar.SlotDisplayBar;
 import com.jedk1.jedcore.scoreboard.BendingBoard;
 import com.jedk1.jedcore.util.Blacklist;
 import com.jedk1.jedcore.util.MetricsLite;
@@ -12,11 +19,6 @@ import com.jedk1.jedcore.util.RegenTempBlock;
 import com.jedk1.jedcore.util.TempFallingBlock;
 import com.jedk1.jedcore.util.UpdateChecker;
 import com.projectkorra.projectkorra.ability.CoreAbility;
-
-import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.IOException;
-import java.util.logging.Logger;
 
 public class JedCore extends JavaPlugin {
 
@@ -50,10 +52,14 @@ public class JedCore extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new AbilityListener(this), this);
 		getServer().getPluginManager().registerEvents(new CommandListener(this), this);
 		getServer().getPluginManager().registerEvents(new JCListener(this), this);
+		getServer().getPluginManager().registerEvents(new SlotDisplayListener(), this);
 		getServer().getScheduler().scheduleSyncRepeatingTask(this, new JCManager(this), 0, 1);
 		
 		BendingBoard.setFields();
 		BendingBoard.updateOnline();
+		
+		SlotDisplayBar.setFields();
+		
 		new Commands();
 		
 		try {

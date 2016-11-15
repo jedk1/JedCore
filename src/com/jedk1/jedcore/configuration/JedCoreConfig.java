@@ -10,12 +10,15 @@ import java.io.File;
 public class JedCoreConfig {
 
 	public static Config board;
+	public static Config slotbar;
 	static JedCore plugin;
 	
 	public JedCoreConfig(JedCore plugin) {
 		JedCoreConfig.plugin = plugin;
 		board = new Config(new File("board.yml"));
+		slotbar = new Config(new File("slotbar.yml"));
 		loadConfigBoard();
+		loadConfigSlotBar();
 		loadConfigCore();
 	}
 	
@@ -32,6 +35,19 @@ public class JedCoreConfig {
 		
 		config.options().copyDefaults(true);
 		board.saveConfig();
+	}
+	
+	private void loadConfigSlotBar() {
+		FileConfiguration config;
+		config = slotbar.getConfig();
+		
+		config.addDefault("Settings.EmptySlot", "&f&oEmpty");
+		config.addDefault("Settings.Toggle.Off", "&7You have disabled bound abilities being shown above the hotbar.");
+		config.addDefault("Settings.Toggle.On", "&7You have enabled bound abilities being shown above the hotbar.");
+		config.addDefault("Settings.Display.DisabledWorlds", true);
+		
+		config.options().copyDefaults(true);
+		slotbar.saveConfig();
 	}
 	
 	private void loadConfigCore() {
@@ -391,6 +407,23 @@ public class JedCoreConfig {
 		config.addDefault("Abilities.Earth.EarthCombo.MagmaBlast.SearchRange", 4);
 		config.addDefault("Abilities.Earth.EarthCombo.MagmaBlast.Cooldown", 8000);
 		config.addDefault("Abilities.Earth.EarthCombo.MagmaBlast.ShotCooldown", 1500);
+		
+		config.addDefault("Abilities.Fire.Combustion.Enabled", true);
+		config.addDefault("Abilities.Fire.Combustion.Description", "Hold Shift to focus large amounts of energy into your body, "
+				+ "Release Shift to fire Combustion. Move your mouse to "
+				+ "direct where the beam travels. Left-Click to detonate "
+				+ "the beam manually");
+		config.addDefault("Abilities.Fire.Combustion.Damage", 4.0);
+		config.addDefault("Abilities.Fire.Combustion.FireTick", 100);
+		config.addDefault("Abilities.Fire.Combustion.MisfireModifier", -1);
+		config.addDefault("Abilities.Fire.Combustion.Power", 3);
+		config.addDefault("Abilities.Fire.Combustion.Range", 100);
+		config.addDefault("Abilities.Fire.Combustion.Warmup", 1500);
+		config.addDefault("Abilities.Fire.Combustion.Cooldown", 5000);
+		config.addDefault("Abilities.Fire.Combustion.RegenTime", 10000);
+		config.addDefault("Abilities.Fire.Combustion.DamageBlocks", true);
+		config.addDefault("Abilities.Fire.Combustion.RegenBlocks", true);
+		config.addDefault("Abilities.Fire.Combustion.InstantExplodeIfHit", true);
 		
 		config.addDefault("Abilities.Fire.Discharge.Enabled", true);
 		config.addDefault("Abilities.Fire.Discharge.Description", "Left-Click to shoot bolts of electricity out "
