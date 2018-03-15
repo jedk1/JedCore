@@ -1,7 +1,9 @@
 package com.jedk1.jedcore.ability.avatar.elementsphere;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.RegenTempBlock;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.AvatarAbility;
@@ -10,6 +12,7 @@ import com.projectkorra.projectkorra.util.DamageHandler;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -36,7 +39,7 @@ public class ESWater extends AvatarAbility implements AddonAbility {
 		if (currES.getWaterUses() == 0) {
 			return;
 		}
-		if (!bPlayer.canBendIgnoreBindsCooldowns(this) || bPlayer.isOnCooldown("ESWater")) {
+		if (bPlayer.isOnCooldown("ESWater")) {
 			return;
 		}
 		setFields();
@@ -47,10 +50,12 @@ public class ESWater extends AvatarAbility implements AddonAbility {
 	}
 
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Avatar.ElementSphere.Water.Cooldown");
-		range = JedCore.plugin.getConfig().getDouble("Abilities.Avatar.ElementSphere.Water.Range");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Avatar.ElementSphere.Water.Damage");
-		speed = JedCore.plugin.getConfig().getInt("Abilities.Avatar.ElementSphere.Water.Speed");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		cooldown = config.getLong("Abilities.Avatar.ElementSphere.Water.Cooldown");
+		range = config.getDouble("Abilities.Avatar.ElementSphere.Water.Range");
+		damage = config.getDouble("Abilities.Avatar.ElementSphere.Water.Damage");
+		speed = config.getInt("Abilities.Avatar.ElementSphere.Water.Speed");
 	}
 	
 	@Override
@@ -73,7 +78,7 @@ public class ESWater extends AvatarAbility implements AddonAbility {
 				return;
 
 			if (!player.isDead())
-				direction = GeneralMethods.getDirection(player.getLocation(), GeneralMethods.getTargetedLocation(player, range, new Integer[] { 8, 9 })).normalize();
+				direction = GeneralMethods.getDirection(player.getLocation(), VersionUtil.getTargetedLocation(player, range, Material.WATER, Material.STATIONARY_WATER)).normalize();
 			location = location.add(direction.clone().multiply(1));
 			if (GeneralMethods.isSolid(location.getBlock()) || !isTransparent(location.getBlock())) {
 				travelled = range;
@@ -149,6 +154,7 @@ public class ESWater extends AvatarAbility implements AddonAbility {
 	
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Avatar.ElementSphere.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Avatar.ElementSphere.Enabled");
 	}
 }

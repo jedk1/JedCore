@@ -1,8 +1,11 @@
 package com.jedk1.jedcore;
 
 import java.io.IOException;
-import java.util.logging.Logger;
+import java.util.logging.*;
 
+import com.google.common.reflect.ClassPath;
+import com.jedk1.jedcore.util.*;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.jedk1.jedcore.command.Commands;
@@ -11,11 +14,8 @@ import com.jedk1.jedcore.listener.AbilityListener;
 import com.jedk1.jedcore.listener.CommandListener;
 import com.jedk1.jedcore.listener.JCListener;
 import com.jedk1.jedcore.scoreboard.BendingBoard;
-import com.jedk1.jedcore.util.MetricsLite;
-import com.jedk1.jedcore.util.RegenTempBlock;
-import com.jedk1.jedcore.util.TempFallingBlock;
-import com.jedk1.jedcore.util.UpdateChecker;
 import com.projectkorra.projectkorra.ability.CoreAbility;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public class JedCore extends JavaPlugin {
 
@@ -23,7 +23,8 @@ public class JedCore extends JavaPlugin {
 	public static Logger log;
 	public static String dev;
 	public static String version;
-	
+	public static boolean logDebug;
+
 	@Override
 	public void onEnable() {
 		if (!isJava8orHigher()) {
@@ -35,7 +36,9 @@ public class JedCore extends JavaPlugin {
 		plugin = this;
 		JedCore.log = this.getLogger();
 		new JedCoreConfig(this);
-		
+
+		logDebug = JedCoreConfig.getConfig((World)null).getBoolean("Properties.LogDebug");
+
 		UpdateChecker.fetch();
 		
 		if (!isSpigot()) {
@@ -44,17 +47,29 @@ public class JedCore extends JavaPlugin {
 		
 		dev = this.getDescription().getAuthors().toString().replace("[", "").replace("]", "");
 		version = this.getDescription().getVersion();
-		
-		JCMethods.registerCombos();
+
 		JCMethods.registerDisabledWorlds();
 		CoreAbility.registerPluginAbilities(plugin, "com.jedk1.jedcore.ability");
 		getServer().getPluginManager().registerEvents(new AbilityListener(this), this);
 		getServer().getPluginManager().registerEvents(new CommandListener(this), this);
 		getServer().getPluginManager().registerEvents(new JCListener(this), this);
+		getServer().getPluginManager().registerEvents(new ChiRestrictor(), this);
+		getServer().getPluginManager().registerEvents(new CooldownEnforcer(), this);
 		getServer().getScheduler().scheduleSyncRepeatingTask(this, new JCManager(this), 0, 1);
 		
 		BendingBoard.updateOnline();
 		new Commands();
+
+		FireTick.loadMethod();
+
+		new BukkitRunnable() {
+			@Override
+			public void run() {
+				JCMethods.registerCombos();
+				BendingBoard.loadOtherCooldowns();
+				initializeCollisions();
+			}
+		}.runTaskLater(this, 1);
 		
 		try {
 	        MetricsLite metrics = new MetricsLite(this);
@@ -64,17 +79,63 @@ public class JedCore extends JavaPlugin {
 	        log.info("Failed to submit statistics for MetricsLite.");
 	    }
 	}
+
+	public void initializeCollisions() {
+		boolean enabled = this.getConfig().getBoolean("Properties.AbilityCollisions.Enabled");
+
+		if (!enabled) {
+			getLogger().info("Collisions disabled.");
+			return;
+		}
+
+		try {
+			ClassPath cp = ClassPath.from(this.getClassLoader());
+
+			for (ClassPath.ClassInfo info : cp.getTopLevelClassesRecursive("com.jedk1.jedcore.ability")) {
+				try {
+					@SuppressWarnings("unchecked")
+					Class<? extends CoreAbility> abilityClass = (Class<? extends CoreAbility>)Class.forName(info.getName());
+
+					if (abilityClass == null) continue;
+
+					CollisionInitializer initializer = new CollisionInitializer<>(abilityClass);
+					initializer.initialize();
+				} catch (Exception e) {
+
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 	private boolean isSpigot() {
 		return plugin.getServer().getVersion().toLowerCase().contains("spigot");
 	}
 	
 	private boolean isJava8orHigher() {
-		return Integer.valueOf(System.getProperty("java.version").substring(2, 3)) >= 8;
+		String[] versionTokens = System.getProperty("java.version").split("\\.|_|-b");
+
+		// This is usually "1", but Java 9 changes versioning to use "9".
+		int main = Integer.valueOf(versionTokens[0]);
+
+		if (main > 1) {
+			return true;
+		}
+
+		int major = Integer.valueOf(versionTokens[1]);
+
+		return major >= 8;
 	}
 	
 	public void onDisable() {
 		RegenTempBlock.revertAll();
 		TempFallingBlock.removeAllFallingBlocks();
+	}
+
+	public static void logDebug(String message) {
+		if (logDebug) {
+			plugin.getLogger().info(message);
+		}
 	}
 }

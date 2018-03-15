@@ -1,7 +1,9 @@
 package com.jedk1.jedcore.ability.waterbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.ThrownEntityTracker;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.BendingPlayer;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
@@ -13,6 +15,7 @@ import com.projectkorra.projectkorra.util.DamageHandler;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -20,6 +23,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -38,14 +42,6 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 	public LivingEntity victim;
 	private BendingPlayer victimBPlayer;
 	private boolean grabbed;
-
-	private Integer[] transparent = {0, 6, 8, 9, 10, 11, 27, 28, 30, 31, 32, 
-			37, 38, 39, 40, 50, 51, 55, 59, 63, 64, 
-			65, 66, 68, 69, 70, 71, 72, 75, 76, 77, 
-			78, 83, 93, 94, 104, 105, 111, 115, 117, 
-			132, 141, 142, 143, 147, 148, 149, 150, 
-			157, 175, 176, 177, 183, 184, 185, 187, 
-			193, 194, 195, 196, 197};
 	
 	public Bloodbending(Player player) {
 		super(player);
@@ -60,14 +56,16 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		nightOnly = JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.NightOnly");
-		fullMoonOnly = JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.FullMoonOnly");
-		undeadMobs = JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.UndeadMobs");
-		bloodbendingThroughBlocks = JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.IgnoreWalls");
-		requireBound = JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.RequireBound");
-		distance = JedCore.plugin.getConfig().getInt("Abilities.Water.Bloodbending.Distance");
-		holdtime = JedCore.plugin.getConfig().getLong("Abilities.Water.Bloodbending.HoldTime");
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Water.Bloodbending.Cooldown");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		nightOnly = config.getBoolean("Abilities.Water.Bloodbending.NightOnly");
+		fullMoonOnly = config.getBoolean("Abilities.Water.Bloodbending.FullMoonOnly");
+		undeadMobs = config.getBoolean("Abilities.Water.Bloodbending.UndeadMobs");
+		bloodbendingThroughBlocks = config.getBoolean("Abilities.Water.Bloodbending.IgnoreWalls");
+		requireBound = config.getBoolean("Abilities.Water.Bloodbending.RequireBound");
+		distance = config.getInt("Abilities.Water.Bloodbending.Distance");
+		holdtime = config.getLong("Abilities.Water.Bloodbending.HoldTime");
+		cooldown = config.getLong("Abilities.Water.Bloodbending.Cooldown");
 	}
 
 	public boolean isEligible(Player player, boolean hasAbility) {
@@ -87,7 +85,7 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 	}
 
 	private void launch() {
-		Vector direction = GeneralMethods.getDirection(player.getEyeLocation(), GeneralMethods.getTargetedLocation(player, 20));
+		Vector direction = GeneralMethods.getDirection(player.getEyeLocation(), VersionUtil.getTargetedLocation(player, 20));
 		direction = direction.normalize();
 		direction.multiply(3);
 		victim.setVelocity(direction);
@@ -103,7 +101,7 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 			if (bloodbendingThroughBlocks) {
 				location = player.getTargetBlock((HashSet<Material>) null, i).getLocation();
 			} else {
-				location = GeneralMethods.getTargetedLocation(player, i, transparent);
+				location = VersionUtil.getTargetedLocationTransparent(player, i);
 			}
 			entities = GeneralMethods.getEntitiesAroundPoint(location, 1.7);
 			if (entities.contains(player)) {
@@ -203,9 +201,9 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 			return;
 		}
 		Location oldLocation = victim.getLocation();
-		Location loc = GeneralMethods.getTargetedLocation(player, (int) player.getLocation().distance(oldLocation));
+		Location loc = VersionUtil.getTargetedLocation(player, (int) player.getLocation().distance(oldLocation));
 		double distance = loc.distance(oldLocation);
-		Vector v = GeneralMethods.getDirection(oldLocation, GeneralMethods.getTargetedLocation(player, 10));
+		Vector v = GeneralMethods.getDirection(oldLocation, VersionUtil.getTargetedLocation(player, 10));
 		if (distance > 1.2D) {
 			victim.setVelocity(v.normalize().multiply(0.8D));
 		} else {
@@ -267,7 +265,8 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Water.Bloodbending.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Water.Bloodbending.Description");
 	}
 
 	@Override
@@ -282,6 +281,7 @@ public class Bloodbending extends BloodAbility implements AddonAbility {
 	
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Water.Bloodbending.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Water.Bloodbending.Enabled");
 	}
 }

@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Random;
 
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -42,7 +44,7 @@ public class IceWall extends IceAbility implements AddonAbility {
 	private int range;
 	private int maxHealth;
 	private int minHealth;
-	private int damage;
+	private double damage;
 	private long cooldown;
 
 	public static boolean stackable;
@@ -107,26 +109,28 @@ public class IceWall extends IceAbility implements AddonAbility {
 	}
 
 	public void setFields() {
-		setMaxHeight(JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.MaxHeight"));
-		setMinHeight(JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.MinHeight"));
-		setWidth(JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.Width"));
-		range = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.Range");
-		maxHealth = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.MaxWallHealth");
-		minHealth = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.MinWallHealth");
-		damage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.Damage");
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Water.IceWall.Cooldown");
-		stackable = JedCore.plugin.getConfig().getBoolean("Abilities.Water.IceWall.Stackable");
-		lifetimeEnabled = JedCore.plugin.getConfig().getBoolean("Abilities.Water.IceWall.LifeTime.Enabled");
-		lifetimeTime = JedCore.plugin.getConfig().getLong("Abilities.Water.IceWall.LifeTime.Duration");
-		torrentDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.Torrent");
-		torrentFreezeDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.TorrentFreeze");
-		iceblastDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.IceBlast");
-		fireblastDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.Fireblast");
-		fireblastChargedDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.FireblastCharged");
-		lightningDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.Lightning");
-		combustionDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.Combustion");
-		earthSmashDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.EarthSmash");
-		airBlastDamage = JedCore.plugin.getConfig().getInt("Abilities.Water.IceWall.WallDamage.AirBlast");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		setMaxHeight(config.getInt("Abilities.Water.IceWall.MaxHeight"));
+		setMinHeight(config.getInt("Abilities.Water.IceWall.MinHeight"));
+		setWidth(config.getInt("Abilities.Water.IceWall.Width"));
+		range = config.getInt("Abilities.Water.IceWall.Range");
+		maxHealth = config.getInt("Abilities.Water.IceWall.MaxWallHealth");
+		minHealth = config.getInt("Abilities.Water.IceWall.MinWallHealth");
+		damage = config.getDouble("Abilities.Water.IceWall.Damage");
+		cooldown = config.getLong("Abilities.Water.IceWall.Cooldown");
+		stackable = config.getBoolean("Abilities.Water.IceWall.Stackable");
+		lifetimeEnabled = config.getBoolean("Abilities.Water.IceWall.LifeTime.Enabled");
+		lifetimeTime = config.getLong("Abilities.Water.IceWall.LifeTime.Duration");
+		torrentDamage = config.getInt("Abilities.Water.IceWall.WallDamage.Torrent");
+		torrentFreezeDamage = config.getInt("Abilities.Water.IceWall.WallDamage.TorrentFreeze");
+		iceblastDamage = config.getInt("Abilities.Water.IceWall.WallDamage.IceBlast");
+		fireblastDamage = config.getInt("Abilities.Water.IceWall.WallDamage.Fireblast");
+		fireblastChargedDamage = config.getInt("Abilities.Water.IceWall.WallDamage.FireblastCharged");
+		lightningDamage = config.getInt("Abilities.Water.IceWall.WallDamage.Lightning");
+		combustionDamage = config.getInt("Abilities.Water.IceWall.WallDamage.Combustion");
+		earthSmashDamage = config.getInt("Abilities.Water.IceWall.WallDamage.EarthSmash");
+		airBlastDamage = config.getInt("Abilities.Water.IceWall.WallDamage.AirBlast");
 	}
 
 	public Block getSourceBlock(Player player, int range) {
@@ -299,6 +303,7 @@ public class IceWall extends IceAbility implements AddonAbility {
 		tempBlocks.clear();
 
 		isWallDoneFor = true;
+		remove();
 	}
 
 	public void remove() {
@@ -311,6 +316,7 @@ public class IceWall extends IceAbility implements AddonAbility {
 		tempBlocks.clear();
 
 		instances.remove(this);
+		super.remove();
 	}
 
 	public static void removeDeadInstances() {
@@ -534,7 +540,8 @@ public class IceWall extends IceAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Water.IceWall.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Water.IceWall.Description");
 	}
 
 	@Override
@@ -549,7 +556,8 @@ public class IceWall extends IceAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Water.IceWall.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Water.IceWall.Enabled");
 	}
 
 	public int getMaxHeight() {

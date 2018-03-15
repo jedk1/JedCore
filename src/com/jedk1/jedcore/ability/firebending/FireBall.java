@@ -1,10 +1,15 @@
 package com.jedk1.jedcore.ability.firebending;
 
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.jedk1.jedcore.collision.CollisionDetector;
+import com.jedk1.jedcore.collision.Sphere;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
+import com.jedk1.jedcore.util.AirShieldReflector;
+import com.jedk1.jedcore.util.FireTick;
+import com.projectkorra.projectkorra.ability.CoreAbility;
+import com.projectkorra.projectkorra.ability.util.Collision;
+import com.projectkorra.projectkorra.airbending.AirShield;
 import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -20,8 +25,6 @@ import com.projectkorra.projectkorra.util.DamageHandler;
 import com.projectkorra.projectkorra.util.ParticleEffect;
 
 public class FireBall extends FireAbility implements AddonAbility {
-
-	public static ConcurrentHashMap<Block, Long> ignitedBlocks = new ConcurrentHashMap<Block, Long>();
 	private Location location;
 	private Vector direction;
 	private double distanceTravelled;
@@ -31,6 +34,8 @@ public class FireBall extends FireAbility implements AddonAbility {
 	private long cooldown;
 	private double damage;
 	private boolean controllable;
+	private boolean fireTrail;
+	private double collisionRadius;
 
 	public FireBall(Player player){
 		super(player);
@@ -42,16 +47,21 @@ public class FireBall extends FireAbility implements AddonAbility {
 		
 		location = player.getEyeLocation();
 		direction = player.getEyeLocation().getDirection().normalize();
+
 		bPlayer.addCooldown(this);
 		start();
 	}
 
 	public void setFields() {
-		range = JedCore.plugin.getConfig().getLong("Abilities.Fire.FireBall.Range");
-		fireticks = JedCore.plugin.getConfig().getLong("Abilities.Fire.FireBall.FireDuration");
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Fire.FireBall.Cooldown");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Fire.FireBall.Damage");
-		controllable = JedCore.plugin.getConfig().getBoolean("Abilities.Fire.FireBall.Controllable");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		range = config.getLong("Abilities.Fire.FireBall.Range");
+		fireticks = config.getLong("Abilities.Fire.FireBall.FireDuration");
+		cooldown = config.getLong("Abilities.Fire.FireBall.Cooldown");
+		damage = config.getDouble("Abilities.Fire.FireBall.Damage");
+		controllable = config.getBoolean("Abilities.Fire.FireBall.Controllable");
+		fireTrail = config.getBoolean("Abilities.Fire.FireBall.FireTrail");
+		collisionRadius = config.getDouble("Abilities.Fire.FireBall.CollisionRadius");
 	}
 	
 	@Override
@@ -60,16 +70,18 @@ public class FireBall extends FireAbility implements AddonAbility {
 			remove();
 			return;
 		}
+
 		if(distanceTravelled >= range){
 			remove();
 			return;
 		}
+
 		if (GeneralMethods.isRegionProtectedFromBuild(player, "FireBall", location)) {
 			remove();
 			return;
 		}
+
 		progressFireball();
-		return;
 	}
 	
 	private void progressFireball(){
@@ -78,7 +90,7 @@ public class FireBall extends FireAbility implements AddonAbility {
 			if (distanceTravelled >= range) {
 				return;
 			}
-			
+
 			if (controllable) {
 				direction = player.getLocation().getDirection();
 			}
@@ -88,27 +100,35 @@ public class FireBall extends FireAbility implements AddonAbility {
 				distanceTravelled = range;
 				return;
 			}
-			
-			new BlazeArc(player, location, direction, 2);
+
 			ParticleEffect.LARGE_SMOKE.display(new Vector(0, 0, 0), 0f, location, 257D);
 			ParticleEffect.LARGE_SMOKE.display(new Vector(0, 0, 0), 0f, location, 257D);
 			for (int j = 0; j < 5; j++) {
 				ParticleEffect.FLAME.display(new Vector(0, 0, 0), 0f, location, 257D);
 			}
-			
-			for(Entity entity : GeneralMethods.getEntitiesAroundPoint(location, 2)){
-				if(entity instanceof LivingEntity && entity.getEntityId() != player.getEntityId() && !(entity instanceof ArmorStand)){
-					doDamage((LivingEntity) entity);
+
+			boolean hitTarget = CollisionDetector.checkEntityCollisions(player, new Sphere(location.toVector(), collisionRadius), this::doDamage);
+
+			if (!hitTarget) {
+				if (this.distanceTravelled > 2 && this.fireTrail) {
+					new BlazeArc(player, location.clone().subtract(direction).subtract(direction), direction, 2);
 				}
+			} else {
+				remove();
+				return;
 			}
 		}
 	}
 	
-	private void doDamage(LivingEntity entity){
+	private boolean doDamage(Entity entity){
+		if (!(entity instanceof LivingEntity)) return false;
+
 		distanceTravelled = range;
 		DamageHandler.damageEntity(entity, damage, this);
-		entity.setFireTicks(Math.round(fireticks/50));
+
+		FireTick.set(entity, Math.round(fireticks / 50));
 		new FireDamageTimer(entity, player);
+		return false;
 	}
 	
 	@Override
@@ -119,6 +139,24 @@ public class FireBall extends FireAbility implements AddonAbility {
 	@Override
 	public Location getLocation() {
 		return location;
+	}
+
+	@Override
+	public void handleCollision(Collision collision) {
+		if (collision.isRemovingFirst()) {
+			remove();
+		} else {
+			CoreAbility second = collision.getAbilitySecond();
+			if (second instanceof AirShield) {
+				ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+				boolean reflect = config.getBoolean("Abilities.Fire.FireBall.Collisions.AirShield.Reflect", true);
+
+				if (reflect) {
+					AirShield shield = (AirShield) second;
+					AirShieldReflector.reflect(shield, this.location, this.direction);
+				}
+			}
+		}
 	}
 
 	@Override
@@ -148,7 +186,8 @@ public class FireBall extends FireAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Fire.FireBall.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Fire.FireBall.Description");
 	}
 
 	@Override
@@ -163,6 +202,7 @@ public class FireBall extends FireAbility implements AddonAbility {
 	
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Fire.FireBall.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Fire.FireBall.Enabled");
 	}
 }

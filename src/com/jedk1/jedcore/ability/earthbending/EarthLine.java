@@ -1,11 +1,14 @@
 package com.jedk1.jedcore.ability.earthbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.RegenTempBlock;
 import com.jedk1.jedcore.util.TempFallingBlock;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.EarthAbility;
+import com.projectkorra.projectkorra.earthbending.passive.EarthPassive;
 import com.projectkorra.projectkorra.util.BlockSource;
 import com.projectkorra.projectkorra.util.ClickType;
 import com.projectkorra.projectkorra.util.DamageHandler;
@@ -14,6 +17,7 @@ import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -56,11 +60,13 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Earth.EarthLine.Cooldown");
-		range = JedCore.plugin.getConfig().getInt("Abilities.Earth.EarthLine.Range");
-		preparerange = JedCore.plugin.getConfig().getInt("Abilities.Earth.EarthLine.PrepareRange");
-		affectingradius = JedCore.plugin.getConfig().getInt("Abilities.Earth.EarthLine.AffectingRadius");
-		damage = JedCore.plugin.getConfig().getInt("Abilities.Earth.EarthLine.Damage");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		
+		cooldown = config.getLong("Abilities.Earth.EarthLine.Cooldown");
+		range = config.getInt("Abilities.Earth.EarthLine.Range");
+		preparerange = config.getInt("Abilities.Earth.EarthLine.PrepareRange");
+		affectingradius = config.getInt("Abilities.Earth.EarthLine.AffectingRadius");
+		damage = config.getDouble("Abilities.Earth.EarthLine.Damage");
 	}
 
 	public boolean prepare() {
@@ -82,8 +88,13 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 
 	private void focusBlock() {
 		if (sourceblock.getType() == Material.SAND) {
+			if (EarthPassive.isPassiveSand(this.sourceblock)) {
+				EarthPassive.revertSand(this.sourceblock);
+				this.sourcetype = this.sourceblock.getType();
+			} else {
+				sourcetype = Material.SAND;
+			}
 			sourceblock.setType(Material.SANDSTONE);
-			sourcetype = Material.SAND;
 		} else if (sourceblock.getType() == Material.STONE) {
 			sourcetype = sourceblock.getType();
 			sourceblock.setType(Material.COBBLESTONE);
@@ -106,11 +117,12 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 	}
 
 	private static Location getTargetLocation(Player player) {
-		double range = JedCore.plugin.getConfig().getInt("Abilities.Earth.EarthLine.Range");
+		ConfigurationSection config = JedCoreConfig.getConfig(player);
+		double range = config.getInt("Abilities.Earth.EarthLine.Range");
 		Entity target = GeneralMethods.getTargetedEntity(player, range, player.getNearbyEntities(range, range, range));
 		Location location;
 		if (target == null) {
-			location = GeneralMethods.getTargetedLocation(player, range, new Integer[0]);
+			location = VersionUtil.getTargetedLocation(player, range);
 		} else {
 			location = ((LivingEntity) target).getEyeLocation();
 		}
@@ -168,6 +180,10 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 		Vector looking = new Vector(x1 - x0, 0.0D, z1 - z0);
 		Vector push = new Vector(x1 - x0, 0.34999999999999998D, z1 - z0);
 		if (location.distance(sourceblock.getLocation()) < range) {
+			if (EarthPassive.isPassiveSand(location.getBlock())) {
+				EarthPassive.revertSand(location.getBlock());
+			}
+
 			Material cloneType = location.getBlock().getType();
 			Location locationYUP = location.clone().add(0.0D, 0.1D, 0.0D);
 
@@ -257,7 +273,8 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Earth.EarthLine.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Earth.EarthLine.Description");
 	}
 
 	@Override
@@ -272,6 +289,7 @@ public class EarthLine extends EarthAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Earth.EarthLine.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Earth.EarthLine.Enabled");
 	}
 }

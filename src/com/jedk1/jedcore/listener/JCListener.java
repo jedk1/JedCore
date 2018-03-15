@@ -5,9 +5,7 @@ import com.jedk1.jedcore.JedCore;
 import com.jedk1.jedcore.ability.avatar.elementsphere.ESEarth;
 import com.jedk1.jedcore.ability.chiblocking.Backstab;
 import com.jedk1.jedcore.ability.chiblocking.DaggerThrow;
-import com.jedk1.jedcore.ability.earthbending.EarthSurf;
-import com.jedk1.jedcore.ability.earthbending.MetalFragments;
-import com.jedk1.jedcore.ability.earthbending.MetalShred;
+import com.jedk1.jedcore.ability.earthbending.*;
 import com.jedk1.jedcore.ability.earthbending.combo.MagmaBlast;
 import com.jedk1.jedcore.ability.firebending.FireBreath;
 import com.jedk1.jedcore.ability.firebending.FirePunch;
@@ -18,24 +16,25 @@ import com.jedk1.jedcore.scoreboard.BendingBoard;
 import com.jedk1.jedcore.util.RegenTempBlock;
 import com.jedk1.jedcore.util.TempFallingBlock;
 import com.jedk1.jedcore.util.UpdateChecker;
+import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.ability.CoreAbility;
 import com.projectkorra.projectkorra.ability.IceAbility;
+import com.projectkorra.projectkorra.earthbending.lava.LavaFlow;
+import com.projectkorra.projectkorra.event.AbilityStartEvent;
 import com.projectkorra.projectkorra.event.BendingReloadEvent;
 import com.projectkorra.projectkorra.event.HorizontalVelocityChangeEvent;
 import com.projectkorra.projectkorra.event.PlayerCooldownChangeEvent;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Arrow;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.FallingBlock;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -70,6 +69,44 @@ public class JCListener implements Listener {
 		}
 	}
 
+	@EventHandler
+	public void onAbilityStart(AbilityStartEvent event) {
+		if (event.isCancelled()) return;
+
+		if (event.getAbility() instanceof LavaFlow) {
+			Player player = event.getAbility().getPlayer();
+			MagmaBlast mb = CoreAbility.getAbility(player, MagmaBlast.class);
+
+			if (mb != null && (mb.hasBlocks() || mb.shouldBlockLavaFlow())) {
+				event.setCancelled(true);
+				LavaFlow flow = (LavaFlow) event.getAbility();
+
+				// Reset the cooldown of LavaFlow that was set before the call to start().
+				flow.getBendingPlayer().removeCooldown(flow);
+			}
+		}
+	}
+
+	@EventHandler
+	public void onFlow(BlockFromToEvent event) {
+		if (!LavaDisc.canFlowFrom(event.getBlock())) {
+			event.setCancelled(true);
+		}
+	}
+
+	@EventHandler(priority = EventPriority.LOW)
+	public void onPlayerFallDamage(EntityDamageEvent event) {
+		if (event.isCancelled() || event.getCause() != DamageCause.FALL || !(event.getEntity() instanceof Player)) {
+			return;
+		}
+
+		Player player = (Player)event.getEntity();
+
+		if (MudSurge.onFallDamage(player)) {
+			event.setCancelled(true);
+		}
+	}
+
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onEntityDamage(EntityDamageEvent event) {
 		if (event.getCause().equals(DamageCause.SUFFOCATION)) {
@@ -92,7 +129,7 @@ public class JCListener implements Listener {
 				return;
 			}
 			if (Backstab.punch((Player) event.getDamager(), (LivingEntity) event.getEntity())) {
-				event.setDamage(Backstab.getDamage());
+				event.setDamage(Backstab.getDamage(event.getDamager().getWorld()));
 				return;
 			}
 			if (IceClaws.freezeEntity((Player) event.getDamager(), (LivingEntity) event.getEntity())) {
@@ -177,6 +214,8 @@ public class JCListener implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void projectKorraReload(BendingReloadEvent event) {
 		final CommandSender sender = event.getSender();
+		// There's a PK bug where a new collision manager is set on reload without stopping the old task.
+		ProjectKorra.getCollisionManager().stopCollisionDetection();
 		new BukkitRunnable() {
 			public void run() {
 				JCMethods.reload();
@@ -193,6 +232,14 @@ public class JCListener implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onCooldownChange(PlayerCooldownChangeEvent event) {
 		if (event.getPlayer() == null) return;
+
+		// Fix a bug in ProjectKorra 1.8.4 that keeps IceWave around forever.
+		// It will continuously add a cooldown to WaterWave, which makes this spam tasks / scoreboard updates.
+		// It also happens with FastSwim when the player is a waterbender.
+		if (BendingBoard.shouldIgnoreAbility(event.getAbility())) {
+			return;
+		}
+
 		BendingBoard.update(event.getPlayer());
 	}
 	

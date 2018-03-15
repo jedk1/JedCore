@@ -1,40 +1,46 @@
 package com.jedk1.jedcore.ability.airbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.collision.CollisionDetector;
+import com.jedk1.jedcore.collision.Sphere;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.AirAbility;
+import com.projectkorra.projectkorra.ability.util.Collision;
 import com.projectkorra.projectkorra.util.DamageHandler;
 
 import org.bukkit.Location;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AirPunch extends AirAbility implements AddonAbility {
 
-	private ConcurrentHashMap<Location, Double> locations = new ConcurrentHashMap<Location, Double>();
+	private Map<Location, Double> locations = new ConcurrentHashMap<>();
 
 	private long cooldown;
 	private long threshold;
-	private int maxShots;
 	private double range;
 	private double damage;
+	private double entityCollisionRadius;
 
 	private int shots;
 	private long lastShotTime;
 
 	public AirPunch(Player player) {
 		super(player);
+
 		if (!bPlayer.canBend(this)) {
 			return;
 		}
 
 		if (hasAbility(player, AirPunch.class)) {
-			AirPunch ap = (AirPunch) getAbility(player, AirPunch.class);
+			AirPunch ap = getAbility(player, AirPunch.class);
 			ap.createShot();
 			return;
 		}
@@ -46,39 +52,42 @@ public class AirPunch extends AirAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Air.AirPunch.Cooldown");
-		threshold = JedCore.plugin.getConfig().getLong("Abilities.Air.AirPunch.Threshold");
-		maxShots = JedCore.plugin.getConfig().getInt("Abilities.Air.AirPunch.Shots");
-		range = JedCore.plugin.getConfig().getDouble("Abilities.Air.AirPunch.Range");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Air.AirPunch.Damage");
-		shots = maxShots;
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		cooldown = config.getLong("Abilities.Air.AirPunch.Cooldown");
+		threshold = config.getLong("Abilities.Air.AirPunch.Threshold");
+		shots = config.getInt("Abilities.Air.AirPunch.Shots");
+		range = config.getDouble("Abilities.Air.AirPunch.Range");
+		damage = config.getDouble("Abilities.Air.AirPunch.Damage");
+		entityCollisionRadius = config.getDouble("Abilities.Air.AirPunch.EntityCollisionRadius");
 	}
 
 	@Override
 	public void progress() {
 		progressShots();
+
 		if (player.isDead() || !player.isOnline()) {
 			remove();
 			return;
 		}
+
 		if (!bPlayer.canBendIgnoreBindsCooldowns(this)) {
 			prepareRemove();
 			return;
 		}
+
 		if (shots == 0 || System.currentTimeMillis() > lastShotTime + threshold) {
 			prepareRemove();
-			return;
 		}
-		return;
 	}
 
 	private void prepareRemove() {
 		if (player.isOnline() && !bPlayer.isOnCooldown(this)) {
 			bPlayer.addCooldown(this);
 		}
+
 		if (locations.isEmpty()) {
 			remove();
-			return;
 		}
 	}
 
@@ -110,13 +119,10 @@ public class AirPunch extends AirAbility implements AddonAbility {
 				getAirbendingParticles().display((float) Math.random() / 5, (float) Math.random() / 5, (float) Math.random() / 5, 0f, 2, loc, 257D);
 				playAirbendingSound(loc);
 
-				for (Entity entity : GeneralMethods.getEntitiesAroundPoint(loc, 2.0)) {
-					if (entity instanceof LivingEntity && entity.getEntityId() != player.getEntityId() && !(entity instanceof ArmorStand)) {
-						DamageHandler.damageEntity(entity, damage, this);
-						cancel = true;
-						break;
-					}
-				}
+				cancel = CollisionDetector.checkEntityCollisions(player, new Sphere(loc.toVector(), entityCollisionRadius), (entity) -> {
+					DamageHandler.damageEntity(entity, damage, this);
+					return true;
+				});
 			}
 
 			if (cancel) {
@@ -134,8 +140,28 @@ public class AirPunch extends AirAbility implements AddonAbility {
 	}
 
 	@Override
+	public double getCollisionRadius() {
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getDouble("Abilities.Air.AirPunch.AbilityCollisionRadius");
+	}
+
+	@Override
 	public Location getLocation() {
 		return null;
+	}
+
+	@Override
+	public void handleCollision(Collision collision) {
+		if (collision.isRemovingFirst()) {
+			Location location = collision.getLocationFirst();
+
+			locations.remove(location);
+		}
+	}
+
+	@Override
+	public List<Location> getLocations() {
+		return new ArrayList<>(locations.keySet());
 	}
 
 	@Override
@@ -165,21 +191,23 @@ public class AirPunch extends AirAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Air.AirPunch.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Air.AirPunch.Description");
 	}
 
 	@Override
 	public void load() {
-		return;
+
 	}
 
 	@Override
 	public void stop() {
-		return;
+
 	}
 	
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Air.AirPunch.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Air.AirPunch.Enabled");
 	}
 }

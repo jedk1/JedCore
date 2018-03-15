@@ -1,10 +1,14 @@
 package com.jedk1.jedcore.ability.earthbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.TempFallingBlock;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.SandAbility;
+import com.projectkorra.projectkorra.ability.util.Collision;
+import com.projectkorra.projectkorra.earthbending.passive.EarthPassive;
 import com.projectkorra.projectkorra.util.BlockSource;
 import com.projectkorra.projectkorra.util.ClickType;
 import com.projectkorra.projectkorra.util.DamageHandler;
@@ -14,6 +18,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
@@ -23,7 +28,11 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class SandBlast extends SandAbility implements AddonAbility {
 
@@ -34,10 +43,14 @@ public class SandBlast extends SandAbility implements AddonAbility {
 	private static double damage;
 
 	private Block source;
+	private Material sourceType;
+	private byte sourceData;
 	private int blasts;
 	private boolean blasting;
 	private Vector direction;
 	private TempBlock tempblock;
+	private List<Entity> affectedEntities = new ArrayList<>();
+	private List<TempFallingBlock> fallingBlocks = new ArrayList<>();
 
 	Random rand = new Random();
 
@@ -50,11 +63,7 @@ public class SandBlast extends SandAbility implements AddonAbility {
 
 		if (hasAbility(player, SandBlast.class)) {
 			SandBlast sb = (SandBlast) getAbility(player, SandBlast.class);
-			if (sb.blasting) {
-				return;
-			}
 			sb.remove();
-			return;
 		}
 
 		setFields();
@@ -64,18 +73,25 @@ public class SandBlast extends SandAbility implements AddonAbility {
 	}
 
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Earth.SandBlast.Cooldown");
-		sourcerange = JedCore.plugin.getConfig().getDouble("Abilities.Earth.SandBlast.SourceRange");
-		range = JedCore.plugin.getConfig().getInt("Abilities.Earth.SandBlast.Range");
-		maxBlasts = JedCore.plugin.getConfig().getInt("Abilities.Earth.SandBlast.MaxSandBlocks");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Earth.SandBlast.Damage");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		
+		cooldown = config.getLong("Abilities.Earth.SandBlast.Cooldown");
+		sourcerange = config.getDouble("Abilities.Earth.SandBlast.SourceRange");
+		range = config.getInt("Abilities.Earth.SandBlast.Range");
+		maxBlasts = config.getInt("Abilities.Earth.SandBlast.MaxSandBlocks");
+		damage = config.getDouble("Abilities.Earth.SandBlast.Damage");
 	}
 
 	private boolean prepare() {
 		source = BlockSource.getEarthSourceBlock(player, sourcerange, ClickType.SHIFT_DOWN);
-		//source = EarthMethods.getEarthSourceBlock(player, (int) sourcerange, false, true, false);
+
 		if (source != null) {
 			if (isSand(source) && source.getRelative(BlockFace.UP).getType().equals(Material.AIR)) {
+				this.sourceType = source.getType();
+				this.sourceData = source.getData();
+				if (EarthPassive.isPassiveSand(source)) {
+					EarthPassive.revertSand(source);
+				}
 				tempblock = new TempBlock(source, Material.SANDSTONE, (byte) 0);
 				return true;
 			}
@@ -89,17 +105,10 @@ public class SandBlast extends SandAbility implements AddonAbility {
 			return;
 		}
 		if (player.isDead() || !player.isOnline()) {
-			if (tempblock != null) {
-				tempblock.revertBlock();
-			}
 			remove();
 			return;
 		}
 		if (player.getWorld() != source.getWorld()) {
-			bPlayer.addCooldown(this);
-			if (tempblock != null) {
-				tempblock.revertBlock();
-			}
 			remove();
 			return;
 		}
@@ -109,16 +118,20 @@ public class SandBlast extends SandAbility implements AddonAbility {
 				blasts++;
 			} else {
 				if (TempFallingBlock.getFromAbility(this).isEmpty()) {
-					bPlayer.addCooldown(this);
-					if (tempblock != null) {
-						tempblock.revertBlock();
-					}
 					remove();
 					return;
 				}
 			}
+			affect();
 		}
-		return;
+	}
+
+	@Override
+	public void remove() {
+		if (this.tempblock != null) {
+			this.tempblock.revertBlock();
+		}
+		super.remove();
 	}
 
 	public static void blastSand(Player player) {
@@ -135,14 +148,15 @@ public class SandBlast extends SandAbility implements AddonAbility {
 	private void blastSand() {
 		if (!blasting) {
 			blasting = true;
-			direction = GeneralMethods.getDirection(source.getLocation().clone().add(0, 1, 0), GeneralMethods.getTargetedLocation(player, range)).multiply(0.07);
+			direction = GeneralMethods.getDirection(source.getLocation().clone().add(0, 1, 0), VersionUtil.getTargetedLocation(player, range)).multiply(0.07);
+			this.bPlayer.addCooldown(this);
 		}
 		tempblock.revertBlock();
 
 		//FallingBlock fblock = source.getWorld().spawnFallingBlock(source.getLocation().clone().add(0, 1, 0), source.getType(), source.getData());
 
 		if (rand.nextInt(2) == 0) {
-			playSandBendingSound(source.getLocation().add(0, 1, 0));
+			VersionUtil.playSandbendingSound(source.getLocation().add(0, 1, 0));
 		}
 
 		double x = rand.nextDouble() / 10;
@@ -155,7 +169,7 @@ public class SandBlast extends SandAbility implements AddonAbility {
 		//fblock.setDropItem(false);
 		//fblocks.put(fblock, player);
 
-		new TempFallingBlock(source.getLocation().add(0, 1, 0), source.getType(), source.getData(), direction.clone().add(new Vector(x, 0.2, z)), this);
+		fallingBlocks.add(new TempFallingBlock(source.getLocation().add(0, 1, 0), sourceType, sourceData, direction.clone().add(new Vector(x, 0.2, z)), this));
 
 	}
 
@@ -174,14 +188,13 @@ public class SandBlast extends SandAbility implements AddonAbility {
 
 			for (Entity entity : GeneralMethods.getEntitiesAroundPoint(fblock.getLocation(), 1.5)) {
 				if (entity instanceof LivingEntity && !(entity instanceof ArmorStand)) {
-					if (player.isOnline()) {
-						if (entity.getEntityId() == player.getEntityId()) {
-							break;
-						}
-					}
+					if (entity == this.player) continue;
+					if (affectedEntities.contains(entity)) continue;
 
 					if (!entity.isDead()) {
 						DamageHandler.damageEntity(entity, damage, this);
+
+						affectedEntities.add(entity);
 
 						LivingEntity le = (LivingEntity) entity;
 						if (le.hasPotionEffect(PotionEffectType.BLINDNESS)) {
@@ -203,6 +216,25 @@ public class SandBlast extends SandAbility implements AddonAbility {
 	@Override
 	public Location getLocation() {
 		return null;
+	}
+
+	@Override
+	public List<Location> getLocations() {
+		return fallingBlocks.stream().map(TempFallingBlock::getLocation).collect(Collectors.toList());
+	}
+
+	@Override
+	public void handleCollision(Collision collision) {
+		if (collision.isRemovingFirst()) {
+			Location location = collision.getLocationFirst();
+
+			Optional<TempFallingBlock> collidedObject = fallingBlocks.stream().filter(temp -> temp.getLocation().equals(location)).findAny();
+
+			if (collidedObject.isPresent()) {
+				fallingBlocks.remove(collidedObject.get());
+				collidedObject.get().remove();
+			}
+		}
 	}
 
 	@Override
@@ -232,7 +264,8 @@ public class SandBlast extends SandAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Earth.SandBlast.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Earth.SandBlast.Description");
 	}
 
 	@Override
@@ -247,6 +280,7 @@ public class SandBlast extends SandAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Earth.SandBlast.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Earth.SandBlast.Enabled");
 	}
 }

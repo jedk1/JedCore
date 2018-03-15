@@ -2,12 +2,17 @@ package com.jedk1.jedcore.ability.firebending;
 
 import com.jedk1.jedcore.JCMethods;
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.collision.CollisionDetector;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
+import com.jedk1.jedcore.util.FireTick;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.FireAbility;
 import com.projectkorra.projectkorra.util.ParticleEffect;
 
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -24,6 +29,8 @@ public class FireSki extends FireAbility implements AddonAbility {
 	private long duration;
 	private double speed;
 	private boolean ignite;
+	private int fireTicks;
+	private double requiredHeight;
 
 	public FireSki(Player player) {
 		super(player);
@@ -32,7 +39,7 @@ public class FireSki extends FireAbility implements AddonAbility {
 		}
 		
 		if (hasAbility(player, FireSki.class)) {
-			FireSki fs = (FireSki) getAbility(player, FireSki.class);
+			FireSki fs = getAbility(player, FireSki.class);
 			fs.remove();
 			return;
 		}
@@ -41,11 +48,11 @@ public class FireSki extends FireAbility implements AddonAbility {
 			return;
 		}
 
-		if (getPlayerDistance(player) < 0.7) {
+		setFields();
+
+		if (CollisionDetector.isOnGround(player) || CollisionDetector.distanceAboveGround(player) < requiredHeight) {
 			return;
 		}
-
-		setFields();
 		
 		couldFly = player.getAllowFlight();
 		wasFlying = player.isFlying();
@@ -60,10 +67,14 @@ public class FireSki extends FireAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Fire.FireSki.Cooldown");
-		duration = JedCore.plugin.getConfig().getLong("Abilities.Fire.FireSki.Duration");
-		speed = JedCore.plugin.getConfig().getDouble("Abilities.Fire.FireSki.Speed");
-		ignite = JedCore.plugin.getConfig().getBoolean("Abilities.Fire.FireSki.IgniteEntities");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+
+		cooldown = config.getLong("Abilities.Fire.FireSki.Cooldown");
+		duration = config.getLong("Abilities.Fire.FireSki.Duration");
+		speed = config.getDouble("Abilities.Fire.FireSki.Speed");
+		ignite = config.getBoolean("Abilities.Fire.FireSki.IgniteEntities");
+		fireTicks = config.getInt("Abilities.Fire.FireSki.FireTicks");
+		requiredHeight = config.getDouble("Abilities.Fire.FireSki.RequiredHeight");
 	}
 
 	private void allowFlight() {
@@ -119,26 +130,19 @@ public class FireSki extends FireAbility implements AddonAbility {
 		playFirebendingSound(player.getLocation());
 		createBeam();
 
-		if (ignite)
+		if (ignite) {
 			for (Entity entity : GeneralMethods.getEntitiesAroundPoint(player.getLocation().clone().add(0, -1, 0), 2.0)) {
 				if (entity instanceof LivingEntity && entity.getEntityId() != player.getEntityId()) {
-					entity.setFireTicks(60);
+					FireTick.set(entity, this.fireTicks);
 				}
 			}
+		}
 
 		player.setVelocity(travel);
 		player.setFallDistance(0);
 	}
 
 	private double getPlayerDistance() {
-		Location l = player.getLocation().clone();
-		while (l.getBlock() != null && l.getBlockY() > 1 && !GeneralMethods.isSolid(l.getBlock())) {
-			l.add(0, -0.1, 0);
-		}
-		return player.getLocation().getY() - l.getY();
-	}
-
-	public static double getPlayerDistance(Player player) {
 		Location l = player.getLocation().clone();
 		while (l.getBlock() != null && l.getBlockY() > 1 && !GeneralMethods.isSolid(l.getBlock())) {
 			l.add(0, -0.1, 0);
@@ -266,6 +270,12 @@ public class FireSki extends FireAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Fire.FireSki.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Fire.FireSki.Enabled");
+	}
+
+	public static boolean isPunchActivated(World world) {
+		ConfigurationSection config = JedCoreConfig.getConfig(world);
+		return config.getBoolean("Abilities.Fire.FireSki.PunchActivated");
 	}
 }

@@ -1,7 +1,9 @@
 package com.jedk1.jedcore.ability.earthbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.TempFallingBlock;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.MetalAbility;
@@ -15,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Item;
@@ -62,6 +65,9 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 
 		if (prepare()) {
 			Block b = selectSource();
+                        if (GeneralMethods.isRegionProtectedFromBuild(player, "MetalFragments", b.getLocation())) {
+                            return;
+			}
 			translateUpward(b);
 
 			start();
@@ -69,11 +75,13 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		maxSources = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalFragments.MaxSources");
-		selectRange = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalFragments.SourceRange");
-		maxFragments = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalFragments.MaxFragments");
-		damage = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalFragments.Damage");
-		cooldown = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalFragments.Cooldown");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		
+		maxSources = config.getInt("Abilities.Earth.MetalFragments.MaxSources");
+		selectRange = config.getInt("Abilities.Earth.MetalFragments.SourceRange");
+		maxFragments = config.getInt("Abilities.Earth.MetalFragments.MaxFragments");
+		damage = config.getDouble("Abilities.Earth.MetalFragments.Damage");
+		cooldown = config.getInt("Abilities.Earth.MetalFragments.Cooldown");
 	}
 
 	public static void shootFragment(Player player, boolean left) {
@@ -120,7 +128,7 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 		if (GeneralMethods.getTargetedEntity(player, 30, new ArrayList<Entity>()) != null) {
 			direction = GeneralMethods.getDirection(source.getLocation(), GeneralMethods.getTargetedEntity(player, 30, new ArrayList<Entity>()).getLocation());
 		} else {
-			direction = GeneralMethods.getDirection(source.getLocation(), GeneralMethods.getTargetedLocation(player, 30));
+			direction = GeneralMethods.getDirection(source.getLocation(), VersionUtil.getTargetedLocation(player, 30));
 		}
 
 		Item ii = player.getWorld().dropItemNaturally(source.getLocation().getBlock().getRelative(GeneralMethods.getCardinalDirection(direction)).getLocation(), is);
@@ -134,8 +142,11 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 			count++;
 			if (count >= maxFragments) {
 				counters.remove(source);
-				source.getWorld().spawnFallingBlock(source.getLocation(), source.getType(), source.getData());
-				TempBlock.get(source).revertBlock();
+				source.getWorld().spawnFallingBlock(source.getLocation().add(0.5, 0, 0.5), source.getType(), source.getData());
+				TempBlock tempBlock = TempBlock.get(source);
+				if (tempBlock != null) {
+					tempBlock.revertBlock();
+				}
 				sources.remove(source);
 				source.getWorld().playSound(source.getLocation(), Sound.ENTITY_ITEM_BREAK, 10, 5);
 			} else {
@@ -196,10 +207,7 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 			return;
 
 		if (isEarthbendable(player, block)) {
-			//FallingBlock fb = player.getWorld().spawnFallingBlock(block.getLocation(), block.getType(), block.getData());
-			//fb.setVelocity(new Vector(0, 0.8, 0));
-			//fblockTracker.add(fb);
-			new TempFallingBlock(block.getLocation(), block.getType(), block.getData(), new Vector(0, 0.8, 0), this);
+			new TempFallingBlock(block.getLocation().add(0.5, 0, 0.5), block.getType(), block.getData(), new Vector(0, 0.8, 0), this);
 			block.setType(Material.AIR);
 
 			playMetalbendingSound(block.getLocation());
@@ -355,7 +363,8 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Earth.MetalFragments.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Earth.MetalFragments.Description");
 	}
 
 	@Override
@@ -370,6 +379,7 @@ public class MetalFragments extends MetalAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Earth.MetalFragments.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Earth.MetalFragments.Enabled");
 	}
 }

@@ -1,7 +1,9 @@
 package com.jedk1.jedcore.ability.earthbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
 import com.jedk1.jedcore.util.RegenTempBlock;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.LavaAbility;
@@ -12,6 +14,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -30,6 +33,7 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 	private int sourceRange;
 	private long sourceRegen;
 	private int shotMax;
+	private int fireTicks;
 
 	private Location location;
 	private int shots;
@@ -60,12 +64,15 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 	}
 
 	public void setFields() {
-		cooldown = JedCore.plugin.getConfig().getLong("Abilities.Earth.LavaThrow.Cooldown");
-		range = JedCore.plugin.getConfig().getInt("Abilities.Earth.LavaThrow.Range");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Earth.LavaThrow.Damage");
-		sourceRange = JedCore.plugin.getConfig().getInt("Abilities.Earth.LavaThrow.SourceGrabRange");
-		sourceRegen = JedCore.plugin.getConfig().getLong("Abilities.Earth.LavaThrow.SourceRegenDelay");
-		shotMax = JedCore.plugin.getConfig().getInt("Abilities.Earth.LavaThrow.MaxShots");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		
+		cooldown = config.getLong("Abilities.Earth.LavaThrow.Cooldown");
+		range = config.getInt("Abilities.Earth.LavaThrow.Range");
+		damage = config.getDouble("Abilities.Earth.LavaThrow.Damage");
+		sourceRange = config.getInt("Abilities.Earth.LavaThrow.SourceGrabRange");
+		sourceRegen = config.getLong("Abilities.Earth.LavaThrow.SourceRegenDelay");
+		shotMax = config.getInt("Abilities.Earth.LavaThrow.MaxShots");
+		fireTicks = config.getInt("Abilities.Earth.LavaThrow.FireTicks");
 	}
 
 	@Override
@@ -108,7 +115,8 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 		Block source = getRandomSourceBlock(location, 3);
 		if (source != null) {
 			shots++;
-			Vector direction = GeneralMethods.getDirection(player.getLocation(), GeneralMethods.getTargetedLocation(player, range, new Integer[] {8, 9, 10, 11})).normalize();
+			Vector direction = GeneralMethods.getDirection(player.getLocation(),
+					VersionUtil.getTargetedLocation(player, range, Material.WATER, Material.STATIONARY_WATER, Material.LAVA, Material.STATIONARY_LAVA)).normalize();
 			Location origin = source.getLocation().clone().add(0, 2, 0);
 			Location head = origin.clone();
 			head.setDirection(direction);
@@ -129,17 +137,23 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 			head = head.add(head.getDirection().multiply(1));
 			new RegenTempBlock(l.getBlock(), Material.STATIONARY_LAVA, (byte) 0, 200);
 			ParticleEffect.LAVA.display((float) Math.random(), (float) Math.random(), (float) Math.random(), 0f, 1, head, 257D);
-			
-			for(Entity entity : GeneralMethods.getEntitiesAroundPoint(location, 2.0D)){
+
+			boolean hit = false;
+
+			for(Entity entity : GeneralMethods.getEntitiesAroundPoint(l, 2.0D)){
 				if(entity instanceof LivingEntity && entity.getEntityId() != player.getEntityId()){
 					DamageHandler.damageEntity(entity, damage, this);
 					blasts.remove(l);
-					continue;
+
+					hit = true;
+					entity.setFireTicks(this.fireTicks);
 				}
 			}
-			
-			blasts.remove(l);
-			blasts.put(head, origin);
+
+			if (!hit) {
+				blasts.remove(l);
+				blasts.put(head, origin);
+			}
 		}
 	}
 
@@ -208,7 +222,8 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Earth.LavaThrow.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Earth.LavaThrow.Description");
 	}
 
 	@Override
@@ -223,6 +238,7 @@ public class LavaThrow extends LavaAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Earth.LavaThrow.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Earth.LavaThrow.Enabled");
 	}
 }

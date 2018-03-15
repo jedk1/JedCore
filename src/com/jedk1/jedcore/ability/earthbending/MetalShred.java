@@ -1,6 +1,8 @@
 package com.jedk1.jedcore.ability.earthbending;
 
 import com.jedk1.jedcore.JedCore;
+import com.jedk1.jedcore.configuration.JedCoreConfig;
+import com.jedk1.jedcore.util.VersionUtil;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.MetalAbility;
@@ -13,6 +15,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -63,9 +66,11 @@ public class MetalShred extends MetalAbility implements AddonAbility {
 	}
 	
 	public void setFields() {
-		selectRange = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalShred.SourceRange");
-		extendTick = JedCore.plugin.getConfig().getInt("Abilities.Earth.MetalShred.ExtendTick");
-		damage = JedCore.plugin.getConfig().getDouble("Abilities.Earth.MetalShred.Damage");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		
+		selectRange = config.getInt("Abilities.Earth.MetalShred.SourceRange");
+		extendTick = config.getInt("Abilities.Earth.MetalShred.ExtendTick");
+		damage = config.getDouble("Abilities.Earth.MetalShred.Damage");
 	}
 
 	public boolean selectSource() {
@@ -250,7 +255,7 @@ public class MetalShred extends MetalAbility implements AddonAbility {
 			lastExtendTime = System.currentTimeMillis();
 			if (length > 0) {
 
-				Block b = lastBlock.getRelative(GeneralMethods.getCardinalDirection(GeneralMethods.getDirection(lastBlock.getLocation(), GeneralMethods.getTargetedLocation(player, fullLength))));
+				Block b = lastBlock.getRelative(GeneralMethods.getCardinalDirection(GeneralMethods.getDirection(lastBlock.getLocation(), VersionUtil.getTargetedLocation(player, fullLength))));
 
 				peelCoil(b);
 
@@ -348,7 +353,8 @@ public class MetalShred extends MetalAbility implements AddonAbility {
 
 	@Override
 	public String getDescription() {
-		return "* JedCore Addon *\n" + JedCore.plugin.getConfig().getString("Abilities.Earth.MetalShred.Description");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return "* JedCore Addon *\n" + config.getString("Abilities.Earth.MetalShred.Description");
 	}
 
 	@Override
@@ -363,6 +369,7 @@ public class MetalShred extends MetalAbility implements AddonAbility {
 
 	@Override
 	public boolean isEnabled() {
-		return JedCore.plugin.getConfig().getBoolean("Abilities.Earth.MetalShred.Enabled");
+		ConfigurationSection config = JedCoreConfig.getConfig(this.player);
+		return config.getBoolean("Abilities.Earth.MetalShred.Enabled");
 	}
 }

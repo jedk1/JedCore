@@ -1,14 +1,13 @@
 package com.jedk1.jedcore.scoreboard;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.projectkorra.projectkorra.Element;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -21,9 +20,11 @@ import com.projectkorra.projectkorra.ability.CoreAbility;
 import com.projectkorra.projectkorra.ability.util.MultiAbilityManager;
 
 public class BendingBoard {
-
-	public static ConcurrentHashMap<Player, BendingBoard> boards = new ConcurrentHashMap<Player, BendingBoard>();
-	public static List<UUID> disabled = new ArrayList<UUID>();
+	private static final List<String> IGNORE_ABILITIES = Arrays.asList("WaterWave", "FastSwim");
+	private static final String OTHER = "Other:";
+	public static Map<String, ChatColor> otherAbilities = new HashMap<>();
+	public static ConcurrentHashMap<Player, BendingBoard> boards = new ConcurrentHashMap<>();
+	public static List<UUID> disabled = new ArrayList<>();
 	public static boolean enabled;
 	public static String title;
 	public static String empty;
@@ -67,6 +68,35 @@ public class BendingBoard {
 		toggleOn = ChatColor.translateAlternateColorCodes('&', JedCoreConfig.board.getConfig().getString("Settings.Toggle.On"));
 		toggleOff = ChatColor.translateAlternateColorCodes('&', JedCoreConfig.board.getConfig().getString("Settings.Toggle.Off"));
 		disabledworlds = JedCoreConfig.board.getConfig().getBoolean("Settings.Display.DisabledWorlds");
+	}
+
+	public static boolean shouldIgnoreAbility(String abilityName) {
+		if (abilityName == null) return false;
+
+		return IGNORE_ABILITIES.contains(abilityName);
+	}
+
+	public static void loadOtherCooldowns() {
+		ConfigurationSection section = JedCoreConfig.board.getConfig().getConfigurationSection("Settings.OtherCooldowns");
+
+		otherAbilities.clear();
+
+		for (String ability : section.getKeys(false)) {
+			ConfigurationSection abilitySection = section.getConfigurationSection(ability);
+			if (abilitySection == null) continue;
+
+			boolean enabled = abilitySection.getBoolean("Enabled", true);
+			if (!enabled) continue;
+
+			String colorString = abilitySection.getString("Color");
+			ChatColor color = null;
+
+			if (colorString != null) {
+				color = ChatColor.valueOf(colorString);
+			}
+
+			otherAbilities.put(ability, color);
+		}
 	}
 
 	public static void updateOnline() {
@@ -143,41 +173,62 @@ public class BendingBoard {
 
 	public void update(final int slot) {
 		if (!enabled) return;
+
 		new BukkitRunnable() {
 			public void run() {
-				int x = slot;
 				BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
 				if (bPlayer == null) return;
-				HashMap<Integer, String> abilities = bPlayer.getAbilities();
-				if (x < 0) {
-					x = player.getInventory().getHeldItemSlot();
+
+				// Check if the player removed their bending board. It's possible for the board to update after hidden.
+				if (boards.get(player) == null) {
+					player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
+					return;
 				}
-				List<String> formatted = new ArrayList<String>();
-				for (int i = 1; i < 10; i++) {
+
+				HashMap<Integer, String> abilities = bPlayer.getAbilities();
+
+				int currentSlot = slot;
+				if (currentSlot < 0) {
+					currentSlot = player.getInventory().getHeldItemSlot();
+				}
+
+				List<String> formatted = new ArrayList<>();
+
+				for (int slotIndex = 1; slotIndex < 10; slotIndex++) {
+					CoreAbility currentAbility = CoreAbility.getAbility(abilities.get(slotIndex));
+					String currentAbilityName = abilities.get(slotIndex);
 					StringBuilder sb = new StringBuilder();
-					if (x == (i - 1))
+
+					if (currentSlot == (slotIndex - 1)) {
 						sb.append(">");
-					if (abilities.containsKey(i) && CoreAbility.getAbility(abilities.get(i)) != null) {
-						for (String s : formatted) {
-							if (ChatColor.stripColor(s).replace(">", "").equalsIgnoreCase(abilities.get(i))) {
-								sb.append(ChatColor.RESET);
+					}
+
+					if (abilities.containsKey(slotIndex) && currentAbility != null) {
+						for (String str : formatted) {
+							String stripped = ChatColor.stripColor(str).replace(">", "");
+
+							if (stripped.equalsIgnoreCase(currentAbilityName)) {
+								// Add a unique chat color to the beginning, so the ability doesn't override other slots in the map.
+								sb.append(ChatColor.values()[slotIndex]);
+								break;
 							}
 						}
-						sb.append(CoreAbility.getAbility(abilities.get(i)).getElement().getColor());
-						if (bPlayer.isOnCooldown(abilities.get(i))) {
+
+						sb.append(currentAbility.getElement().getColor());
+
+						if (bPlayer.isOnCooldown(currentAbilityName)) {
 							sb.append(ChatColor.STRIKETHROUGH);
 						}
-						sb.append(abilities.get(i));
-						//if (bPlayer.isOnCooldown(abilities.get(i))) {
-						//	sb.append(ChatColor.RESET + " " + -(((System.currentTimeMillis() - bPlayer.getCooldown(abilities.get(i)))/1000) - 1));
-						//}
+
+						sb.append(currentAbilityName);
 					} else {
-						if (abilities.containsKey(i) && MultiAbilityManager.hasMultiAbilityBound(player)) {
-							sb.append(abilities.get(i));
+						if (abilities.containsKey(slotIndex) && MultiAbilityManager.hasMultiAbilityBound(player)) {
+							sb.append(abilities.get(slotIndex));
 						} else {
-							sb.append(empty.replace("%", String.valueOf(i)));
+							sb.append(empty.replace("%", String.valueOf(slotIndex)));
 						}
 					}
+
 					formatted.add(sb.toString());
 				}
 				boolean combo = false;
@@ -186,21 +237,50 @@ public class BendingBoard {
 						if (!combo) {
 							formatted.add(BendingBoard.combo);
 						}
+
 						combo = true;
-						formatted.add( CoreAbility.getAbility(ability).getElement().getColor() + "" + ChatColor.STRIKETHROUGH + ability);
+						formatted.add("" + CoreAbility.getAbility(ability).getElement().getColor() + ChatColor.STRIKETHROUGH + ability);
 					}
 				}
+
+				if (!otherAbilities.isEmpty()) {
+					boolean other = false;
+					for (String ability : bPlayer.getCooldowns().keySet()) {
+						if (!otherAbilities.containsKey(ability)) continue;
+						ChatColor color = otherAbilities.get(ability);
+
+						if (!other) {
+							formatted.add(OTHER);
+							other = true;
+						}
+
+						if (color == null)
+							color = getColor(ability);
+
+						formatted.add("" + color + ChatColor.STRIKETHROUGH + ability);
+					}
+				}
+
 				if (scoreboard.get(-10, "") != null) {
-					for (int i = -9; i > -15; i--) {
+					for (int i = -9; i > -22; i--) {
 						scoreboard.remove(i, "");
 					}
 				}
+
 				for (String s : formatted) {
 					scoreboard.add(s, -(formatted.indexOf(s) + 1));
 				}
+
 				scoreboard.update();
 				scoreboard.send(player);
 			}
 		}.runTaskLater(JedCore.plugin, 5);
+	}
+
+	private ChatColor getColor(String abilityName) {
+		CoreAbility ability = CoreAbility.getAbility(abilityName);
+		if (ability != null)
+			return ability.getElement().getColor();
+		return ChatColor.WHITE;
 	}
 }
